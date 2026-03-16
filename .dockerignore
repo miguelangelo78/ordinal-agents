@@ -1,0 +1,6 @@
+# Used when building agent-0 (context = repo root)
+.git
+key
+.env
+*.key
+.gitignore

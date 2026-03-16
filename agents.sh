@@ -8,8 +8,11 @@
 #   ./agents.sh shell [id]     Open a bash shell inside agent
 #   ./agents.sh down [id]      Stop and remove container (keeps data)
 #   ./agents.sh nuke [id]      Remove container AND volumes (full reset)
-#   ./agents.sh status         Show all agent containers
+#   ./agents.sh spawn [id]     Build + up (id >= 1; from host or inside agent-0)
+#   ./agents.sh despawn [id]   Down (id >= 1)
+#   ./agents.sh status         Show all agent containers (alias: list)
 #   ./agents.sh key [id] [key] Set API key for an agent
+# Agent 0 is the orchestrator: gets Docker socket + repo mount so it can spawn/despawn others.
 
 set -e
 
@@ -17,10 +20,13 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CMD="${1:-help}"
 AGENT_ID="${2}"
 
-BASE_PORT=32350  # agent 0 = 32350, agent 1 = 32351, ...
+BASE_PORT=32350   # agent 0 = 32350, agent 1 = 32351, ...
+# Bind port on host: 127.0.0.1 (localhost only) or 0.0.0.0 (all interfaces, for VPS access)
+BIND_ADDRESS="${ORDINAL_AGENTS_BIND:-127.0.0.1}"
 
 container_name() { echo "agent-${1}"; }
 image_name() { echo "agent-${1}"; }
+# Each agent gets a unique workspace and config volume (no sharing)
 workspace_vol() { echo "agent-${1}-workspace"; }
 config_vol() { echo "agent-${1}-config"; }
 agent_port() { echo $(( BASE_PORT + ${1} )); }
@@ -41,7 +47,12 @@ build_agent() {
 
     build_base
     echo "=== Building agent ${id} ==="
-    docker build -t "$(image_name "$id")" -f "${dir}/Dockerfile" "${dir}"
+    if [ "$id" = "0" ]; then
+        # Agent 0: build from repo root so image gets full repo at /home/claude/workspace
+        docker build -t "$(image_name "$id")" -f "${dir}/Dockerfile" "${SCRIPT_DIR}"
+    else
+        docker build -t "$(image_name "$id")" -f "${dir}/Dockerfile" "${dir}"
+    fi
 }
 
 up_agent() {
@@ -66,25 +77,55 @@ up_agent() {
         echo "Warning: No key file found at ${key_file}. Set it later with: ./agents.sh key ${id} YOUR-KEY"
     fi
 
+    local vol_workspace vol_extra web_auth_flag bridge_flag
+    if [ "$id" = "0" ]; then
+        # Agent 0: repo is read-only at /repo-src; workspace is a volume (entrypoint copies repo -> workspace so 0 never touches originals)
+        vol_workspace="-v ${SCRIPT_DIR}:/repo-src:ro -v $(workspace_vol "$id"):/home/claude/workspace"
+        vol_extra="-v /var/run/docker.sock:/var/run/docker.sock -v agent-0-config-dotconfig:/home/claude/.config"
+        web_auth_flag="-e CC_WEB_AUTH=${CC_WEB_AUTH:-agent0}"
+        bridge_flag="-e BRIDGE_URL=http://localhost:32360"
+    else
+        vol_workspace="-v $(workspace_vol "$id"):/home/claude/workspace"
+        vol_extra=""
+        web_auth_flag=""
+        bridge_flag=""
+    fi
+
+    # Agent 0: no command = entrypoint starts bridge + Web UI
+    local run_cmd="sleep infinity"
+    [ "$id" = "0" ] && run_cmd=""
+
     echo "=== Starting agent ${id} (port ${port}) ==="
     docker run -d \
         --name "${name}" \
         --hostname "${name}" \
         ${key_flag} \
-        -p "127.0.0.1:${port}:${port}" \
-        -v "$(workspace_vol "$id"):/home/claude/workspace" \
+        ${web_auth_flag} \
+        ${bridge_flag} \
+        -p "${BIND_ADDRESS}:${port}:${port}" \
+        ${vol_workspace} \
         -v "$(config_vol "$id"):/home/claude/.claude" \
+        ${vol_extra} \
         --restart unless-stopped \
         "$(image_name "$id")" \
-        sleep infinity
+        ${run_cmd}
 
-    # Fix volume permissions (Docker creates them as root)
-    docker exec -u root "${name}" chown -R claude:claude /home/claude/.claude /home/claude/workspace
+    # Fix volume permissions. Agent 0: entrypoint does .claude; only fix for id >= 1
+    if [ "$id" != "0" ]; then
+        docker exec -u root "${name}" chown -R claude:claude /home/claude/.claude /home/claude/workspace
+    fi
 
     echo ""
     echo "Agent ${id} is alive."
-    echo "  CLI:    ./agents.sh enter ${id}"
-    echo "  Web UI: ./agents.sh web ${id}"
+    echo "  Workspace volume: $(workspace_vol "$id")"
+    echo "  Config volume:   $(config_vol "$id")"
+    if [ "$id" = "0" ]; then
+        echo "  Open in browser:  http://localhost:${port}/?token=${CC_WEB_AUTH:-agent0}"
+        echo "  CLI (optional):   ./agents.sh enter ${id}"
+    else
+        echo "  CLI:    ./agents.sh enter ${id}"
+        echo "  Web UI: ./agents.sh web ${id}"
+    fi
     echo "  Shell:  ./agents.sh shell ${id}"
     echo "  Key:    ./agents.sh key ${id} sk-ant-api03-YOUR-KEY"
 }
@@ -92,7 +133,12 @@ up_agent() {
 enter_agent() {
     local id="$1"
     local name="$(container_name "$id")"
-    docker exec -it "${name}" bash -lc "claude --dangerously-skip-permissions"
+    # Agent 0: repo is at /home/claude/workspace; start Claude Code there so agents.sh is visible at ./
+    if [ "$id" = "0" ]; then
+        docker exec -it "${name}" bash -lc "cd /home/claude/workspace && claude --dangerously-skip-permissions"
+    else
+        docker exec -it "${name}" bash -lc "claude --dangerously-skip-permissions"
+    fi
 }
 
 web_agent() {
@@ -109,7 +155,12 @@ web_agent() {
     echo "Press Ctrl+C to stop the Web UI (agent keeps running)"
     echo ""
 
-    docker exec -it "${name}" bash -lc "cc-web --no-open --port ${port}"
+    # Agent 0: start Web UI with repo as cwd so workspace is ordinal-agents (agents.sh at ./)
+    if [ "$id" = "0" ]; then
+        docker exec -it "${name}" bash -lc "cd /home/claude/workspace && cc-web --no-open --port ${port}"
+    else
+        docker exec -it "${name}" bash -lc "cc-web --no-open --port ${port}"
+    fi
 }
 
 shell_agent() {
@@ -133,6 +184,7 @@ nuke_agent() {
     docker rm -f "${name}" 2>/dev/null || true
     docker volume rm "$(workspace_vol "$id")" 2>/dev/null || true
     docker volume rm "$(config_vol "$id")" 2>/dev/null || true
+    [ "$id" = "0" ] && docker volume rm agent-0-config-dotconfig 2>/dev/null || true
     echo "Agent ${id} fully removed."
 }
 
@@ -157,8 +209,33 @@ show_status() {
     echo "=== Agent Containers ==="
     docker ps -a --filter "name=agent-" --format "table {{.Names}}\t{{.Status}}\t{{.Image}}\t{{.Ports}}"
     echo ""
+    echo "=== Workspace/Config per container (verify no sharing) ==="
+    for name in $(docker ps -a --filter "name=agent-" --format "{{.Names}}" | sort -V); do
+        echo "  ${name}:"
+        docker inspect "${name}" --format '{{range .Mounts}}{{if eq .Destination "/home/claude/workspace"}}    workspace <- {{.Name}}{{println}}{{end}}{{if eq .Destination "/home/claude/.claude"}}    .claude   <- {{.Name}}{{println}}{{end}}{{end}}' 2>/dev/null || true
+    done
+    echo ""
     echo "=== Agent Volumes ==="
     docker volume ls --filter "name=agent-" --format "table {{.Name}}\t{{.Driver}}"
+}
+
+spawn_agent() {
+    local id="$1"
+    if [ "$id" = "0" ]; then
+        echo "Use ./agents.sh up 0 to start agent 0. Spawn is for additional agents (1, 2, ...)."
+        exit 1
+    fi
+    build_agent "$id"
+    up_agent "$id"
+}
+
+despawn_agent() {
+    local id="$1"
+    if [ "$id" = "0" ]; then
+        echo "Use ./agents.sh down 0 to stop agent 0. Despawn is for additional agents (1, 2, ...)."
+        exit 1
+    fi
+    down_agent "$id"
 }
 
 case "$CMD" in
@@ -169,6 +246,14 @@ case "$CMD" in
     up)
         [ -z "$AGENT_ID" ] && echo "Usage: ./agents.sh up [id]" && exit 1
         up_agent "$AGENT_ID"
+        ;;
+    spawn)
+        [ -z "$AGENT_ID" ] && echo "Usage: ./agents.sh spawn [id]  (id >= 1)" && exit 1
+        spawn_agent "$AGENT_ID"
+        ;;
+    despawn)
+        [ -z "$AGENT_ID" ] && echo "Usage: ./agents.sh despawn [id]  (id >= 1)" && exit 1
+        despawn_agent "$AGENT_ID"
         ;;
     enter)
         [ -z "$AGENT_ID" ] && echo "Usage: ./agents.sh enter [id]" && exit 1
@@ -194,15 +279,17 @@ case "$CMD" in
         [ -z "$AGENT_ID" ] && echo "Usage: ./agents.sh key [id] [api-key]" && exit 1
         set_key "$AGENT_ID" "$3"
         ;;
-    status)
+    status|list)
         show_status
         ;;
     *)
-        echo "agents.sh — manage sandboxed Claude Code agents"
+        echo "agents.sh — agent 0 orchestrates; others are spawned/despawned by 0 or from host"
         echo ""
         echo "Usage:"
         echo "  ./agents.sh build [id]          Build base + agent image"
-        echo "  ./agents.sh up [id]             Start agent container"
+        echo "  ./agents.sh up [id]             Start agent (0 = with Docker socket + repo)"
+        echo "  ./agents.sh spawn [id]          Build + up for id 1, 2, ... (from host or agent-0)"
+        echo "  ./agents.sh despawn [id]        Stop agent 1, 2, ..."
         echo "  ./agents.sh enter [id]          Launch Claude Code (CLI)"
         echo "  ./agents.sh web [id]            Launch Claude Code (Web UI)"
         echo "  ./agents.sh shell [id]          Open bash shell inside agent"
@@ -212,10 +299,9 @@ case "$CMD" in
         echo "  ./agents.sh status              Show all agents"
         echo ""
         echo "Examples:"
-        echo "  ./agents.sh build 0"
-        echo "  ./agents.sh up 0"
-        echo "  ./agents.sh enter 0             # CLI"
-        echo "  ./agents.sh web 0               # Web UI on port 32350"
+        echo "  ./agents.sh up 0                # Start orchestrator (agent 0)"
+        echo "  ./agents.sh enter 0             # CLI; then inside 0: ./agents.sh spawn 1"
+        echo "  ./agents.sh spawn 1             # From host: build and start agent 1"
         echo "  ./agents.sh key 0 sk-ant-api03-xxxxx"
         ;;
 esac
