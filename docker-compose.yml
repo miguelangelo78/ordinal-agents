@@ -27,7 +27,7 @@ services:
       - open-webui-data:/app/backend/data
     environment:
       - OPENAI_API_BASE_URL=http://ordinal-agent:4000/v1
-      - OPENAI_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=dummy
       - ENABLE_OLLAMA_API=False
       - WEBUI_AUTH=True
       - WEBUI_ADMIN_EMAIL=${WEBUI_ADMIN_EMAIL:-admin@example.com}

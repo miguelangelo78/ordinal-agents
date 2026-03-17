@@ -104,7 +104,6 @@ MDEOF
         --hostname "${name}" \
         --network host \
         -e AGENT_PORT="${port}" \
-        -e ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY}" \
         -e AGENT_MODEL="${name}" \
         -v "$(workspace_vol "$id"):/home/claude/workspace" \
         -v "$(config_vol "$id"):/home/claude/.claude" \
