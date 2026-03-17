@@ -23,7 +23,37 @@ const VALID_THINKING = new Set(['on', 'off', 'adaptive']);
 const MEMORY_PROMPT = `You have a persistent memory file at /home/claude/workspace/.agent-memory.md.
 ALWAYS read it at the start of every conversation before responding.
 When users teach you preferences, rules, facts, or important context, append them to this file immediately so you remember across all conversations and restarts.
-If the file doesn't exist yet, create it.`;
+If the file doesn't exist yet, create it.
+
+## PLANNING AND THINKING DISCIPLINE
+
+You are a senior engineer. You do NOT rush into implementation. You think deeply first.
+
+For EVERY non-trivial request, follow this exact sequence:
+
+### Phase 1: Understand (MANDATORY)
+- Read your memory file
+- Read all relevant files and code before forming any opinion
+- Identify ambiguities, edge cases, and unknowns
+- Ask clarifying questions if ANYTHING is unclear — do NOT assume
+- If you have zero questions, explain WHY you have zero questions
+
+### Phase 2: Plan (MANDATORY before any code changes)
+- Present a detailed plan: what you'll change, why, and what the risks are
+- List the files you'll touch and what changes each gets
+- Identify potential side effects or breaking changes
+- Explicitly ask: "Does this plan look good, or would you like changes?"
+- STOP HERE. Wait for user approval before proceeding.
+
+### Phase 3: Implement (ONLY after explicit user approval)
+- Only begin coding after the user says "go ahead", "yes", "do it", "looks good", or similar
+- Implement incrementally — show progress, don't go silent for 50 tool calls
+- Test your changes where possible
+- Summarize what you did when finished
+
+CRITICAL: If the user's message is a simple question, greeting, or small task (e.g. "what port is X on?", "read this file"), respond directly — this workflow is for tasks that involve code changes or architectural decisions.
+
+NEVER skip Phase 1 and 2 for non-trivial work. The user WILL notice and WILL be unhappy.`;
 
 // Per-conversation settings store (keyed by conversation key)
 const conversationSettings = new Map();
@@ -126,7 +156,7 @@ export function parseSlashCommand(text, conversationKey) {
 
     case '/thinking': {
       if (!arg || !VALID_THINKING.has(arg.toLowerCase())) {
-        return { isCommand: true, response: `Usage: /thinking ${[...VALID_THINKING].join('|')}\nCurrent: ${current.thinking || 'adaptive (default)'}` };
+        return { isCommand: true, response: `Usage: /thinking ${[...VALID_THINKING].join('|')}\nCurrent: ${current.thinking || 'on (default)'}` };
       }
       const thinking = arg.toLowerCase();
       setSettings(conversationKey, { ...current, thinking });
@@ -156,7 +186,7 @@ export function parseSlashCommand(text, conversationKey) {
         '**Current settings:**',
         `- effort: ${current.effort || 'high (default)'}`,
         `- model: ${current.model || '(default)'}`,
-        `- thinking: ${current.thinking || 'adaptive (default)'}`,
+        `- thinking: ${current.thinking || 'on (default)'}`,
         `- maxTurns: ${current.maxTurns || 'unlimited (default)'}`,
         `- budget: ${current.maxBudgetUsd ? '$' + current.maxBudgetUsd : 'unlimited (default)'}`,
       ];
@@ -188,6 +218,10 @@ export function buildSdkOptions(cwd, sessionId, systemDirectives, conversationKe
     stderr: (data) => console.error('[claude-sdk]', data.trim()),
   };
 
+  // Defaults: think hard
+  options.effort = 'high';
+  options.thinking = { type: 'enabled', budgetTokens: 50000 };
+
   // Apply system prompt directives first, then stored slash command settings (slash commands win)
   const merged = { ...systemDirectives, ...stored };
 
@@ -202,6 +236,8 @@ export function buildSdkOptions(cwd, sessionId, systemDirectives, conversationKe
         options.thinking = { type: 'disabled' };
         break;
       case 'on':
+        options.thinking = { type: 'enabled', budgetTokens: 50000 };
+        break;
       case 'adaptive':
         options.thinking = { type: 'adaptive' };
         break;
