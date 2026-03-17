@@ -179,6 +179,7 @@ export function buildSdkOptions(cwd, sessionId, systemDirectives, conversationKe
     permissionMode: 'bypassPermissions',
     allowDangerouslySkipPermissions: true,
     settingSources: ['project'],
+    stderr: (data) => console.error('[claude-sdk]', data.trim()),
   };
 
   // Apply system prompt directives first, then stored slash command settings (slash commands win)
