@@ -42,11 +42,14 @@ docker compose down
 
 ## Port Allocation
 
-**IMPORTANT**: When running on VPS, all custom application ports must start from **6000 and upwards**.
+**IMPORTANT**: All custom application ports must be in the range **8000-8020**.
 
-- Ports below 6000 are reserved for system services and infrastructure
-- When creating Express apps, web servers, APIs, or any custom services, always use ports ≥ 6000
-- Example: Express app on 6000, API on 6001, WebSocket server on 6002, etc.
+- Ports 3000-3020 are reserved for agent services (main agent + subagents)
+- Ports 8000-8020 are exposed by the god container for custom applications
+- Ports below 8000 may be blocked by browsers as "unsafe ports" (e.g., 6000)
+- When creating Express apps, web servers, APIs, or any custom services, always use ports 8000-8020
+- Example: Express app on 8000, API on 8001, WebSocket server on 8002, etc.
+- Maximum 21 custom application ports available (8000-8020 inclusive)
 
 ## Key Files
 

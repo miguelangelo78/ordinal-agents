@@ -9,6 +9,7 @@ services:
     env_file: .env
     ports:
       - "${AGENT_BASE_PORT:-3000}-${AGENT_BASE_PORT_END:-3020}:${AGENT_BASE_PORT:-3000}-${AGENT_BASE_PORT_END:-3020}"
+      - "8000-8020:8000-8020"  # Custom app ports (8000+ to avoid browser unsafe port restrictions)
     volumes:
       - agent-workspace:/home/claude/workspace
       - agent-config:/home/claude/.claude
