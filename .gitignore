@@ -1,3 +1,4 @@
-key
 .env
 *.key
+key
+authelia/users.yml

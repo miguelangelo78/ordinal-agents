@@ -1,0 +1,39 @@
+---
+server:
+  address: 'tcp://:9091'
+
+log:
+  level: info
+
+identity_validation:
+  reset_password:
+    jwt_secret: ${AUTHELIA_JWT_SECRET}
+
+authentication_backend:
+  file:
+    path: /config/users.yml
+
+session:
+  name: authelia_session
+  secret: ${AUTHELIA_SESSION_SECRET}
+  cookies:
+    - domain: '${AGENT_DOMAIN}'
+      authelia_url: 'https://auth.${AGENT_DOMAIN}'
+  expiration: 7d
+  inactivity: 3d
+  remember_me: 30d
+
+storage:
+  local:
+    path: /data/db.sqlite3
+  encryption_key: ${AUTHELIA_STORAGE_ENCRYPTION_KEY}
+
+access_control:
+  default_policy: one_factor
+
+notifier:
+  filesystem:
+    filename: /data/notification.txt
+
+totp:
+  issuer: ordinal-agents

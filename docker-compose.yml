@@ -1,40 +1,70 @@
-# ordinal-agents — agent-0 only. Bridge runs inside agent-0 (no separate service).
-# Build:  docker compose build agent-base && docker compose build agent-0
-# Up:     docker compose up -d agent-0
-# .env:   ANTHROPIC_API_KEY=sk-ant-api03-...  and optionally CC_WEB_AUTH=<token>
-# Web UI: http://localhost:32350/?token=agent0  (or your CC_WEB_AUTH value)
-
 services:
-  agent-base:
+  agent:
     build:
       context: .
-      dockerfile: Dockerfile.base
-    image: agent-base:latest
-    profiles:
-      - build-only
-
-  agent-0:
-    image: agent-0:latest
-    build:
-      context: .
-      dockerfile: 0/Dockerfile
-    container_name: agent-0
-    hostname: agent-0
+      dockerfile: Dockerfile
+    container_name: ordinal-agent
+    hostname: ordinal-agent
+    privileged: true
     env_file: .env
-    environment:
-      - BRIDGE_URL=http://localhost:32360
     ports:
-      - "32350:32350"
+      - "127.0.0.1:${AGENT_BASE_PORT:-3000}-${AGENT_BASE_PORT_END:-3020}:${AGENT_BASE_PORT:-3000}-${AGENT_BASE_PORT_END:-3020}"
     volumes:
-      - .:/repo-src:ro
-      - agent-0-workspace:/home/claude/workspace
-      - /var/run/docker.sock:/var/run/docker.sock
-      - agent-0-config:/home/claude/.claude
-      - agent-0-config-dotconfig:/home/claude/.config
+      - agent-workspace:/home/claude/workspace
+      - agent-config:/home/claude/.claude
+      - docker-data:/var/lib/docker
     restart: unless-stopped
-    # Use "docker compose down" without -v so login and config persist across restarts
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: ordinal-webui
+    depends_on:
+      - agent
+    ports:
+      - "127.0.0.1:${OPEN_WEBUI_PORT:-3080}:8080"
+    volumes:
+      - open-webui-data:/app/backend/data
+    environment:
+      - OPENAI_API_BASE_URL=http://ordinal-agent:4000/v1
+      - OPENAI_API_KEY=${ANTHROPIC_API_KEY}
+      - ENABLE_OLLAMA_API=False
+      - WEBUI_AUTH=True
+      - WEBUI_ADMIN_EMAIL=${WEBUI_ADMIN_EMAIL:-admin@example.com}
+      - WEBUI_ADMIN_PASSWORD=${WEBUI_ADMIN_PASSWORD:-changeme}
+      - WEBUI_NAME=Ordinal Agents
+    restart: unless-stopped
+
+  caddy:
+    build: ./caddy
+    container_name: ordinal-caddy
+    profiles: ["vps"]
+    depends_on:
+      - authelia
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    env_file: .env
+    restart: unless-stopped
+
+  authelia:
+    image: authelia/authelia:latest
+    container_name: ordinal-authelia
+    profiles: ["vps"]
+    volumes:
+      - ./authelia:/config:ro
+      - authelia-data:/data
+    env_file: .env
+    restart: unless-stopped
 
 volumes:
-  agent-0-workspace:
-  agent-0-config:
-  agent-0-config-dotconfig:
+  agent-workspace:
+  agent-config:
+  docker-data:
+  open-webui-data:
+  caddy-data:
+  caddy-config:
+  authelia-data:

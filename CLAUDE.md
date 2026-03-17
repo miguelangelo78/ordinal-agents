@@ -1,26 +1,53 @@
 # ordinal-agents
 
-Numbered AI agents (0, 1, 2, …) in Docker. **You manage other agents by talking to agent-0 in Claude Code** — e.g. "spawn agent 1", "stop agent 2", "list agents". Agent-0 runs the corresponding `./agents.sh` commands. Agent 0 is the orchestrator (repo + Docker socket); agents 1, 2, … are isolated and only agent-0 can create/stop them.
+This file provides guidance to Claude Code when working with code in this repository.
 
-## Layout
+## What This Is
 
-- **`Dockerfile.base`** — Shared image: Node 22, Python, git, tmux, Claude Code CLI + Web. User `claude`, workdir `/home/claude/workspace`.
-- **`agents.sh`** — Build, up/down, enter/shell/web, **spawn** (build+up for id ≥ 1), **despawn** (down for id ≥ 1), key, status. Agent 0 gets Docker socket + repo bind mount when started with `up 0` or Compose.
-- **`docker-compose.yml`** — Agent-0 only. Repo is mounted read-only at /repo-src; workspace is a volume. Entrypoint copies repo → workspace on first run so agent-0 never touches the host repo.
-- **`bridge/`** — HTTP service in agent-0 image; entrypoint starts it so agent-0 can message other agents.
-- **`0/`** — Dockerfile (Docker CLI + bridge), entrypoint (copy repo into workspace, then bridge + Web UI), CLAUDE.md.
-- **`<id>/`** (id ≥ 1) — Per-agent dir: `Dockerfile` (FROM agent-base, copy `CLAUDE.md`, git identity) and `CLAUDE.md`. Created by you or by asking agent-0; then ask agent-0 to spawn (it runs `./agents.sh spawn <id>`).
+ordinal-agents is a Docker-based AI agent system. A single privileged "god container" runs Docker-in-Docker, Claude Code Web, and cc-bridge. Open WebUI is the primary chat interface. The main agent can spawn isolated subagent containers inside its DinD environment.
 
-## Running
+## Build & Run
 
-- **Start orchestrator (script or Compose):** build and start agent-0 (e.g. `./agents.sh up 0` or `docker compose up -d agent-0`). The Web UI starts automatically. **Open http://localhost:32350** — no shell commands. Talk to agent-0 there to spawn/despawn/list agents; it runs `./agents.sh` in the terminal.
-- API key: repo `key` file or `./agents.sh key 0 <key>`; Compose uses `.env`.
+```bash
+# Local dev
+cp .env.example .env   # Set ANTHROPIC_API_KEY
+docker compose build
+docker compose up -d    # Main agent on localhost:AGENT_BASE_PORT (default 3000)
 
-## Adding an agent (id ≥ 1)
+# VPS (with Caddy + Authelia)
+docker compose --profile vps up -d
 
-Create `<id>/CLAUDE.md` and `<id>/Dockerfile` (see README), then ask agent-0 in Claude Code to spawn that agent (it runs `./agents.sh spawn <id>`). To remove: ask agent-0 to despawn it, or run `./agents.sh despawn <id>` / `down` / `nuke` from the host.
+# Tear down (keeps volumes)
+docker compose down
+```
 
-## Conventions
+## Subagent Management (inside god container)
 
-- Agent 0 is the only one with Docker socket and repo mount; it orchestrates. Others use named volumes only.
-- Base port 32350; agent `id` uses port `32350 + id`.
+```bash
+./agents.sh spawn <id> [--role "description"]   # id: 1-20
+./agents.sh stop <id>
+./agents.sh rm <id>
+./agents.sh list
+./agents.sh logs <id>
+```
+
+## Architecture
+
+- God container: `--privileged` for DinD, runs supervisord (dockerd, cc-web, cc-bridge)
+- Open WebUI: Chat interface on port 3080 (local) / main domain (VPS). Connects to cc-bridge.
+- Subagents: `--network host` inside DinD (bind ports in god container's namespace)
+- Port scheme: `AGENT_BASE_PORT` + id. Main = base, subagent N = base+N. Max 20.
+- cc-bridge: OpenAI-compatible API on port 4000 (internal). Wraps Claude Agent SDK — Open WebUI gets full Claude Code capabilities.
+- VPS: Caddy (wildcard subdomain TLS via DNS challenge) + Authelia (2FA, sessions)
+
+## Key Files
+
+- `Dockerfile` — God container image
+- `supervisord.conf` — Process management (dockerd, cc-web, cc-bridge)
+- `cc-bridge/` — OpenAI-compatible bridge wrapping Claude Agent SDK
+- `entrypoint.sh` — Container init (volume sync + supervisord)
+- `agents.sh` — Subagent CLI
+- `agent/CLAUDE.md` — Main agent personality
+- `subagents/template/` — Subagent image template
+- `caddy/Caddyfile` — Reverse proxy with static entries for all 20 subagent subdomains
+- `authelia/configuration.yml` — Auth config

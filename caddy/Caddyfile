@@ -1,0 +1,129 @@
+{
+    email admin@{$AGENT_DOMAIN}
+    acme_dns cloudflare {$DNS_API_TOKEN}
+}
+
+(authelia) {
+    forward_auth http://authelia:9091 {
+        uri /api/authz/forward-auth
+        copy_headers Remote-User Remote-Groups Remote-Name Remote-Email
+    }
+}
+
+# Authelia login UI
+auth.{$AGENT_DOMAIN} {
+    reverse_proxy authelia:9091
+}
+
+# Open WebUI (primary chat interface)
+{$AGENT_DOMAIN} {
+    import authelia
+    reverse_proxy http://ordinal-webui:8080
+}
+
+# Claude Code Web (backup — full terminal/file access)
+cc.{$AGENT_DOMAIN} {
+    import authelia
+    reverse_proxy http://ordinal-agent:{$AGENT_BASE_PORT}
+}
+
+# Subagent entries (static — ports that aren't running return 502)
+s1.{$AGENT_DOMAIN} {
+    import authelia
+    reverse_proxy http://ordinal-agent:{$AGENT_BASE_PORT_1}
+}
+
+s2.{$AGENT_DOMAIN} {
+    import authelia
+    reverse_proxy http://ordinal-agent:{$AGENT_BASE_PORT_2}
+}
+
+s3.{$AGENT_DOMAIN} {
+    import authelia
+    reverse_proxy http://ordinal-agent:{$AGENT_BASE_PORT_3}
+}
+
+s4.{$AGENT_DOMAIN} {
+    import authelia
+    reverse_proxy http://ordinal-agent:{$AGENT_BASE_PORT_4}
+}
+
+s5.{$AGENT_DOMAIN} {
+    import authelia
+    reverse_proxy http://ordinal-agent:{$AGENT_BASE_PORT_5}
+}
+
+s6.{$AGENT_DOMAIN} {
+    import authelia
+    reverse_proxy http://ordinal-agent:{$AGENT_BASE_PORT_6}
+}
+
+s7.{$AGENT_DOMAIN} {
+    import authelia
+    reverse_proxy http://ordinal-agent:{$AGENT_BASE_PORT_7}
+}
+
+s8.{$AGENT_DOMAIN} {
+    import authelia
+    reverse_proxy http://ordinal-agent:{$AGENT_BASE_PORT_8}
+}
+
+s9.{$AGENT_DOMAIN} {
+    import authelia
+    reverse_proxy http://ordinal-agent:{$AGENT_BASE_PORT_9}
+}
+
+s10.{$AGENT_DOMAIN} {
+    import authelia
+    reverse_proxy http://ordinal-agent:{$AGENT_BASE_PORT_10}
+}
+
+s11.{$AGENT_DOMAIN} {
+    import authelia
+    reverse_proxy http://ordinal-agent:{$AGENT_BASE_PORT_11}
+}
+
+s12.{$AGENT_DOMAIN} {
+    import authelia
+    reverse_proxy http://ordinal-agent:{$AGENT_BASE_PORT_12}
+}
+
+s13.{$AGENT_DOMAIN} {
+    import authelia
+    reverse_proxy http://ordinal-agent:{$AGENT_BASE_PORT_13}
+}
+
+s14.{$AGENT_DOMAIN} {
+    import authelia
+    reverse_proxy http://ordinal-agent:{$AGENT_BASE_PORT_14}
+}
+
+s15.{$AGENT_DOMAIN} {
+    import authelia
+    reverse_proxy http://ordinal-agent:{$AGENT_BASE_PORT_15}
+}
+
+s16.{$AGENT_DOMAIN} {
+    import authelia
+    reverse_proxy http://ordinal-agent:{$AGENT_BASE_PORT_16}
+}
+
+s17.{$AGENT_DOMAIN} {
+    import authelia
+    reverse_proxy http://ordinal-agent:{$AGENT_BASE_PORT_17}
+}
+
+s18.{$AGENT_DOMAIN} {
+    import authelia
+    reverse_proxy http://ordinal-agent:{$AGENT_BASE_PORT_18}
+}
+
+s19.{$AGENT_DOMAIN} {
+    import authelia
+    reverse_proxy http://ordinal-agent:{$AGENT_BASE_PORT_19}
+}
+
+s20.{$AGENT_DOMAIN} {
+    import authelia
+    reverse_proxy http://ordinal-agent:{$AGENT_BASE_PORT_20}
+}
