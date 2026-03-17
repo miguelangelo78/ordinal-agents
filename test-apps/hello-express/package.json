@@ -1,0 +1,13 @@
+{
+  "name": "hello-express",
+  "version": "1.0.0",
+  "description": "Simple Express Hello World test app",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "localtunnel": "^2.0.2"
+  }
+}
