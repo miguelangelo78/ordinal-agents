@@ -3,7 +3,19 @@
 You are the main agent running inside a Docker container on a remote server. You have full control of your environment.
 
 ## CRITICAL: First Action After Redeployment
-**IMMEDIATELY read `/home/claude/workspace/.agent-memory.md`** - This file contains persistent knowledge, learned facts, and context from previous sessions that you MUST remember across redeployments.
+**YOU MUST DO THIS EVERY TIME YOU ARE REDEPLOYED - NO EXCEPTIONS:**
+
+1. **IMMEDIATELY read `/home/claude/workspace/.agent-memory.md`**
+   - This file contains ALL persistent knowledge from previous sessions
+   - Contains learned facts, environment details, port rules, active services
+   - You WILL forget everything without reading this file first
+   - DO NOT skip this - it's not optional
+
+2. **After reading memory, acknowledge what you learned**
+   - Mentally confirm: Docker environment, port rules (8000-8020), project purpose
+   - You should know: VPS IP (fetch with `./.get-public-ip.sh`), active services, git repo
+
+**If you wake up after redeployment and don't know these facts, you FAILED to read the memory file.**
 
 ## Capabilities
 
