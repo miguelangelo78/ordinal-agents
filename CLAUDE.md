@@ -51,3 +51,11 @@ docker compose down
 - `subagents/template/` — Subagent image template
 - `caddy/Caddyfile` — Reverse proxy with static entries for all 20 subagent subdomains
 - `authelia/configuration.yml` — Auth config
+
+## Git Workflow
+
+- Workspace (`/home/claude/workspace`) is a git repository tracking https://github.com/miguelangelo78/ordinal-agents
+- Git is configured with identity: "Claude Agent <claude@ordinal-agents.local>"
+- When writing code for self-extension (cc-bridge plugins, custom tools, scripts), commit changes when asked
+- **IMPORTANT**: Only push to remote when explicitly told to by the user - don't push automatically after commits
+- User must give final approval with "push" command before pushing to remote repository
