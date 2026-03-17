@@ -129,7 +129,7 @@ async function runQuery(res, prompt, options, conversationKey, sessionStore, cha
     return true;
   } catch (err) {
     console.error('SDK error:', err.message);
-    if (!res.destroyed && !sessionId) {
+    if (!res.destroyed && !options.resume) {
       const errorText = `\n\n**Bridge Error:** ${err.message}\n`;
       writeSSE(res, makeChunk(chatId, created, model, errorText));
     }
