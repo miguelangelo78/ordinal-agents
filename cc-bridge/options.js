@@ -176,8 +176,8 @@ export function buildSdkOptions(cwd, sessionId, systemDirectives, conversationKe
 
   const options = {
     cwd,
-    permissionMode: 'bypassPermissions',
-    allowDangerouslySkipPermissions: true,
+    permissionMode: 'acceptEdits',
+    allowedTools: ['Bash', 'Read', 'Write', 'Edit', 'Glob', 'Grep', 'WebFetch', 'WebSearch', 'NotebookEdit', 'Agent', 'Task', 'TaskOutput'],
     settingSources: ['project'],
     pathToClaudeCodeExecutable: '/usr/lib/node_modules/@anthropic-ai/claude-code/cli.js',
     stderr: (data) => console.error('[claude-sdk]', data.trim()),
