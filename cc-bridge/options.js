@@ -20,6 +20,11 @@
 const VALID_EFFORTS = new Set(['low', 'medium', 'high', 'max']);
 const VALID_THINKING = new Set(['on', 'off', 'adaptive']);
 
+const MEMORY_PROMPT = `You have a persistent memory file at /home/claude/workspace/.agent-memory.md.
+ALWAYS read it at the start of every conversation before responding.
+When users teach you preferences, rules, facts, or important context, append them to this file immediately so you remember across all conversations and restarts.
+If the file doesn't exist yet, create it.`;
+
 // Per-conversation settings store (keyed by conversation key)
 const conversationSettings = new Map();
 
@@ -204,6 +209,9 @@ export function buildSdkOptions(cwd, sessionId, systemDirectives, conversationKe
   }
 
   if (sessionId) options.resume = sessionId;
+
+  // Always inject memory prompt (prepend to any user-provided system prompt)
+  options.systemPrompt = MEMORY_PROMPT;
 
   return options;
 }

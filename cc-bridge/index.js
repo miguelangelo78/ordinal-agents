@@ -1,4 +1,5 @@
 import express from 'express';
+import { join } from 'node:path';
 import SessionStore from './sessions.js';
 import { streamCompletion, sendError } from './stream.js';
 import { discoverSubagents, proxyToSubagent } from './subagents.js';
@@ -12,7 +13,7 @@ const CWD = process.env.BRIDGE_CWD || '/home/claude/workspace';
 const MODEL_NAME = process.env.BRIDGE_MODEL || 'main-agent';
 const IS_MAIN = process.env.BRIDGE_ROLE === 'main';
 
-const sessions = new SessionStore();
+const sessions = new SessionStore(join(CWD, '.cc-bridge-sessions.json'));
 
 app.get('/health', (req, res) => res.json({ status: 'ok', model: MODEL_NAME }));
 

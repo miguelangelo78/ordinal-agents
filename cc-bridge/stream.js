@@ -27,7 +27,7 @@ export async function streamCompletion(req, res, messages, model, sessionStore, 
   const chatId = `chatcmpl-${Date.now().toString(36)}`;
   const created = Math.floor(Date.now() / 1000);
   const sdkOpts = buildSdkOptions(cwd, existingSessionId, systemDirectives, conversationKey);
-  if (systemPrompt) sdkOpts.systemPrompt = systemPrompt;
+  if (systemPrompt) sdkOpts.systemPrompt += '\n\n' + systemPrompt;
 
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');

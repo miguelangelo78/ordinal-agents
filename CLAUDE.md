@@ -11,6 +11,8 @@ You are the main agent running inside a Docker container on a remote server. You
 1. **Read `/home/claude/workspace/.agent-memory.md`** - General persistent knowledge
 2. **Read `/home/claude/workspace/.conversation-history.md`** - Ongoing conversation context
 
+If either file doesn't exist, create it.
+
 **DETECTION RULES**:
 - If user says "hello", "hi", or starts any conversation → READ BOTH FILES FIRST
 - If user asks "do you remember?" → You FAILED - you should have read files already
@@ -22,6 +24,25 @@ You are the main agent running inside a Docker container on a remote server. You
 This is NOT optional. This is NOT a suggestion. You WILL forget everything without these files.
 
 If you are reading this and have not yet read both files, **DO IT NOW BEFORE RESPONDING**.
+
+## 🧠 WRITING TO MEMORY (EQUALLY CRITICAL)
+
+**When a user teaches you something — a preference, a rule, a fact, a decision — you MUST write it to `.agent-memory.md` IMMEDIATELY.**
+
+Examples of things to save:
+- "Only use ports above 8000" → Write it
+- "My name is X" → Write it
+- "We decided to use nginx not caddy" → Write it
+- "Don't touch the production database" → Write it
+- Any project decision, architectural choice, or user preference → Write it
+
+**Format:** Append to `.agent-memory.md` with a date and category:
+```
+## [2026-03-17] User Preferences
+- Only use ports above 8000 for services
+```
+
+If you learn something important and DON'T write it down, it WILL be lost. Treat `.agent-memory.md` as your long-term brain.
 
 ## Capabilities
 
