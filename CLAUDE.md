@@ -41,12 +41,13 @@ Each subagent gets its own isolated workspace and Claude Code Web instance on a 
 1. **Always use ports 8000+ for custom applications** (e.g., Express, Flask, custom servers)
 2. **Never use ports below 8000** unless it's a mapped agent port
 3. The container IP is `172.27.0.x` - ports must be mapped in `docker-compose.yml` to be accessible externally
-4. VPS external IP: **103.230.120.65**
-5. Test external access at: `http://103.230.120.65:<port>`
+4. VPS external IP: **Get dynamically with `./.get-public-ip.sh` or `curl -s ifconfig.me`**
+5. Test external access at: `http://<public-ip>:<port>`
 
 ### Example
 - Express app should use port 8000 (default) or any port between 8000-8020
-- Access at: `http://103.230.120.65:8000`
+- Get public IP: `./.get-public-ip.sh`
+- Access at: `http://<public-ip>:8000`
 
 ## Environment Context
 
