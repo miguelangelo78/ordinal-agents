@@ -40,6 +40,14 @@ docker compose down
 - cc-bridge: OpenAI-compatible API on port 4000 (internal). Wraps Claude Agent SDK — Open WebUI gets full Claude Code capabilities.
 - VPS: Caddy (wildcard subdomain TLS via DNS challenge) + Authelia (2FA, sessions)
 
+## Port Allocation
+
+**IMPORTANT**: When running on VPS, all custom application ports must start from **6000 and upwards**.
+
+- Ports below 6000 are reserved for system services and infrastructure
+- When creating Express apps, web servers, APIs, or any custom services, always use ports ≥ 6000
+- Example: Express app on 6000, API on 6001, WebSocket server on 6002, etc.
+
 ## Key Files
 
 - `Dockerfile` — God container image
