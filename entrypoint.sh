@@ -14,5 +14,20 @@ cp -rf /opt/ordinal-agents/subagents/ /home/claude/workspace/subagents/
 cp -rf /opt/ordinal-agents/cc-bridge/ /home/claude/workspace/cc-bridge/
 chown -R claude:claude /home/claude/workspace
 
+# Create startup banner to remind agent to read memory
+if [ -f /home/claude/workspace/.startup-banner.sh ]; then
+    su -p claude -c "bash /home/claude/workspace/.startup-banner.sh" || true
+fi
+
+# Display agent memory on startup (if exists)
+if [ -f /home/claude/workspace/.load-memory.sh ]; then
+    echo ""
+    echo "==============================================="
+    echo "🚨 AUTO-LOADING AGENT MEMORY ON STARTUP 🚨"
+    echo "==============================================="
+    su -p claude -c "bash /home/claude/workspace/.load-memory.sh" || true
+    echo ""
+fi
+
 # Start supervisord (manages dockerd, cc-web, cc-bridge)
 exec /usr/bin/supervisord -c /etc/supervisor/supervisord.conf
