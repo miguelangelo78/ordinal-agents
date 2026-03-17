@@ -14,6 +14,16 @@ cp -rf /opt/ordinal-agents/subagents/ /home/claude/workspace/subagents/
 cp -rf /opt/ordinal-agents/cc-bridge/ /home/claude/workspace/cc-bridge/
 chown -R claude:claude /home/claude/workspace
 
+# Restore .claude.json from backup if missing (not on a volume, lost on redeploy)
+if [ ! -f /home/claude/.claude.json ] && [ -d /home/claude/.claude/backups ]; then
+    LATEST_BACKUP=$(ls -t /home/claude/.claude/backups/.claude.json.backup.* 2>/dev/null | head -1)
+    if [ -n "$LATEST_BACKUP" ]; then
+        cp "$LATEST_BACKUP" /home/claude/.claude.json
+        chown claude:claude /home/claude/.claude.json
+        echo "Restored .claude.json from backup"
+    fi
+fi
+
 # Create startup banner to remind agent to read memory
 if [ -f /home/claude/workspace/.startup-banner.sh ]; then
     su -p claude -c "bash /home/claude/workspace/.startup-banner.sh" || true
